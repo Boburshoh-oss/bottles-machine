@@ -1,3 +1,4 @@
+import imp
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import AbstractBaseUser , PermissionsMixin , BaseUserManager
@@ -6,7 +7,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 from rest_framework.authtoken.models import Token
 import random
 # Create your models here.
-
+import qrcode
 class UserManager(BaseUserManager):
     def create_user(self, phone_number, username, password=None):
         """
@@ -19,7 +20,7 @@ class UserManager(BaseUserManager):
             raise ValueError('Users must have an username')
         
         user = self.model(
-            phone_number=self.phone_number,
+            phone_number=phone_number,
             username=username,
         )
 
@@ -33,13 +34,14 @@ class UserManager(BaseUserManager):
         birth and password.
         """
         user = self.create_user(
-            phone_number,
+            phone_number=phone_number,
             username=username,
             password=password,
             
         )
         user.is_admin = True
         user.save(using=self._db)
+        print(user.is_admin)
         return user
 
 
@@ -99,38 +101,44 @@ class Profile(models.Model):
     last_name = models.CharField(max_length=200)
     image = models.ImageField(upload_to="profile_image")
     user = models.OneToOneField("customer.User",on_delete=models.CASCADE, related_name="user_profile")
-    balance = models.DecimalField(max_digits=10, decimal_places=2)
+    balance = models.FloatField(default=0)
     qrcode = models.ImageField(upload_to=qrcode_location, null=True, blank=True)
-    employee_id = models.CharField(unique=True, max_length=11)
+    employee_id = models.CharField(unique=True, max_length=100,blank=True)
     address = models.CharField(max_length=255)
     active = models.BooleanField(default=True)
     
     def __str__(self):
-        return f"{self.user.username}"
+        return f"{self.user.phone_number}"
     
     def save(self):
         first_initial = self.first_name[0].upper()
         second_initial = self.last_name[0].upper()
         id_number = first_initial + second_initial + str(random.randint(1000000, 9999999))
-        self.generate_qrcode()
-
+        import string 
+        S = 20
+        id_number += ''.join(random.choices(string.ascii_uppercase + string.digits, k = S)    )
+        
         if not Profile.objects.filter(employee_id=id_number).exists():
+            qr = self.generate_qrcode(id_number)
             self.employee_id = id_number
+            self.qrcode = qr
             super(Profile, self).save()
 
 
 
-    def generate_qrcode(self):
+    def generate_qrcode(self,id_number):
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
             box_size=10,
             border=4,
         )
-        qr.add_data('Some data')
+        qr.add_data(id_number)
         qr.make(fit=True)
 
         filename = 'qrcode-code1.png'
 
-        img = qr.make_image()
-        img.save('media_cdn/' + qrcode_location(self, filename))
+        img = qr.make_image(fill_color="black", back_color="white")
+        img.save(f"qr/{id_number}.png")
+      
+        return f'qr/{id_number}.png'

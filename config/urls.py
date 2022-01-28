@@ -16,6 +16,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+from machine.views import MachineView
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('qr_code/test',MachineView.as_view())
 ]
