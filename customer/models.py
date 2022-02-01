@@ -4,10 +4,6 @@ from django.contrib.auth.models import AbstractBaseUser , PermissionsMixin , Bas
 from django.utils.translation import gettext_lazy as _
 from phonenumber_field.modelfields import PhoneNumberField
 from rest_framework.authtoken.models import Token
-import random
-import string 
-# Create your models here.
-import qrcode
 class UserManager(BaseUserManager):
     def create_user(self, phone_number, username, password=None):
         """
@@ -111,33 +107,3 @@ class Profile(models.Model):
     def __str__(self):
         return f"{self.user.phone_number}"
     
-    def save(self,*args, **kwargs):
-        id_number = str(random.randint(1000000, 9999999))
-        
-        S = 20
-        id_number += ''.join(random.choices(string.ascii_uppercase + string.digits, k = S)    )
-        
-        if not Profile.objects.filter(employee_id=id_number).exists():
-            qr = self.generate_qrcode(id_number)
-            self.employee_id = id_number
-            self.qrcode = qr
-            super(Profile, self).save(*args, **kwargs)
-
-
-
-    def generate_qrcode(self,id_number):
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
-        )
-        qr.add_data(id_number)
-        qr.make(fit=True)
-
-        filename = 'qrcode-code1.png'
-
-        img = qr.make_image(fill_color="black", back_color="white")
-        img.save(f"qr/{id_number}.png")
-      
-        return f'qr/{id_number}.png'
